@@ -1,0 +1,142 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "MessageBird SMS Test";
+}
+
+<div class="container mt-5">
+    <h1 class="mb-4">SMS Sender</h1>
+
+    <div class="row">
+        <div class="col-md-6">
+            <label for="customerSelect" class="form-label">Customer</label>
+            <select id="customerSelect" class="form-select">
+                <option value="">Select a customer</option>
+                @foreach (var customer in Model.Customers)
+                {
+                    <option value="@customer.Id">@customer.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-6">
+            <label for="messagePresetSelect" class="form-label">Message Preset</label>
+            <select id="messagePresetSelect" class="form-select">
+                <option value="">Select a preset</option>
+                @foreach (var preset in Model.MessagePresets)
+                {
+                    <option value="@preset.Id">@preset.Type</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <label for="customerInfo" class="form-label">Customer Information</label>
+        <textarea id="customerInfo" class="form-control" rows="6" readonly></textarea>
+    </div>
+
+    <div class="mt-4">
+        <label for="messagePresetInfo" class="form-label">Message Preset</label>
+        <textarea id="messagePresetInfo" class="form-control" rows="6" readonly></textarea>
+    </div>
+
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <div class="text-center mt-4">
+            <button type="button" id="sendSmsBtn" class="btn btn-primary">Send SMS</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const $customerSelect = document.getElementById("customerSelect");
+        const $presetSelect = document.getElementById("messagePresetSelect");
+        const $customerInfo = document.getElementById("customerInfo");
+        const $presetInfo = document.getElementById("messagePresetInfo");
+        const $sendBtn = document.getElementById("sendSmsBtn");
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        $customerSelect.addEventListener("change", async function () {
+            const id = this.value;
+
+            if (!id) {
+                $customerInfo.value = "";
+                updateMessage();
+                return;
+            }
+
+            try {
+                const res = await fetch(`?handler=Customer&id=${id}`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                $customerInfo.value =
+                    `Name: ${data.name}\n` +
+                    `Phone: ${data.phoneNumber}\n` +
+                    `Credit Number: ${data.creditNumber}\n` +
+                    `Amount: ${data.amount}€\n` +
+                    `Due Date: ${data.dueDate}`;
+
+                await updateMessage();
+            } catch (err) {
+                alert("Could not load customer data.");
+            }
+        });
+
+        $presetSelect.addEventListener("change", async function () {
+            const id = this.value;
+
+            if (!id) {
+                $presetInfo.value = "";
+                return;
+            }
+
+            const res = await fetch(`?handler=MessagePreset&id=${id}`);
+            if (res.ok) {
+                const preset = await res.json();
+                $presetInfo.value = preset.text;
+                await updateMessage();
+            } else {
+                alert("Could not load message preset.");
+            }
+        });
+
+        async function updateMessage() {
+            const customerId = $customerSelect.value;
+            const presetId = $presetSelect.value;
+
+            if (!customerId || !presetId) {
+                $presetInfo.value = "";
+                return;
+            }
+
+            const res = await fetch(`?handler=Message&customerId=${customerId}&messagePresetId=${presetId}`);
+            $presetInfo.value = res.ok ? (await res.json()).message : "Could not generate message.";
+        }
+
+        $sendBtn.addEventListener("click", async () => {
+            const customerId = $customerSelect.value;
+            const presetId = $presetSelect.value;
+
+            if (!customerId || !presetId) {
+                alert("Please select both a customer and a message template.");
+                return;
+            }
+
+            const response = await fetch(`?handler=SendSms&customerId=${customerId}&messagePresetId=${presetId}`, {
+                method: "POST",
+                headers: { "RequestVerificationToken": token }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                alert(errorText || "Error sending SMS.");
+                return;
+            }
+
+            alert("SMS sent successfully!");
+        });
+    </script>
+}
