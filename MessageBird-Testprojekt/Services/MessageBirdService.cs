@@ -9,9 +9,6 @@ namespace MessageBird_Testprojekt.Services
         private readonly string _accessKey;
         public MessageBirdService(IConfiguration configuration)
         {
-            //Es wurde ein MessageBird Account erstellt und ein API-Key generiert. Dieser wird hier verwendet,
-            //jedoch habe ich davon abgesehen meine Telefonnummer anzugeben, sodass keine Credits im Wallet sind.
-            //Daher ist dies eine theoretische Lösung.
             _accessKey = configuration["MessageBirdSettings:AccessKey"] ?? throw new InvalidOperationException("MessageBird API Key is invalid.");
         }
         public bool SendSms(string phoneNumber, string message)
